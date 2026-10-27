@@ -59,25 +59,62 @@ function Wait-Docker {
 function Test-Java21 {
     param([string]$Java)
     if (-not (Test-Path -LiteralPath $Java)) { return $false }
-    if (-not (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $Java) 'javac.exe'))) { return $false }
+    $compiler = Join-Path (Split-Path -Parent $Java) 'javac.exe'
+    if (-not (Test-Path -LiteralPath $compiler)) { return $false }
     try {
         $version = & $Java --version 2>$null
-        return ($LASTEXITCODE -eq 0 -and ($version -join ' ') -match '^(openjdk|java) 21[.\s]')
+        if ($LASTEXITCODE -ne 0 -or ($version -join ' ') -notmatch '^(openjdk|java) 21[.\s]') { return $false }
+        $compilerVersion = & $compiler --version 2>$null
+        return ($LASTEXITCODE -eq 0 -and ($compilerVersion -join ' ') -match '^javac 21[.\s]')
     } catch { return $false }
+}
+
+function Get-JavaRuntimeHome {
+    param([string]$Java)
+    # Read both streams directly: Windows PowerShell 5.1 treats native stderr as errors.
+    $process = New-Object System.Diagnostics.Process
+    try {
+        $process.StartInfo.FileName = $Java
+        $process.StartInfo.Arguments = '-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -XshowSettings:properties -version'
+        $process.StartInfo.UseShellExecute = $false
+        $process.StartInfo.CreateNoWindow = $true
+        $process.StartInfo.RedirectStandardOutput = $true
+        $process.StartInfo.RedirectStandardError = $true
+        $process.StartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
+        $process.StartInfo.StandardErrorEncoding = [Text.Encoding]::UTF8
+        if (-not $process.Start()) { return $null }
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(10000)) {
+            $process.Kill()
+            return $null
+        }
+        if ($process.ExitCode -ne 0 -or -not $stdout.Wait(2000) -or -not $stderr.Wait(2000)) { return $null }
+        $settings = $stderr.Result + [Environment]::NewLine + $stdout.Result
+        $match = [regex]::Match($settings, '(?m)^\s*java\.home\s*=\s*([^\r\n]+)')
+        if ($match.Success) { return $match.Groups[1].Value.Trim() }
+        return $null
+    } catch { return $null }
+    finally { $process.Dispose() }
 }
 
 function Get-Java21 {
     param([string]$Root)
     $candidates = @()
-    if ($env:JAVA_HOME) { $candidates += Join-Path $env:JAVA_HOME 'bin\java.exe' }
+    if ($env:JAVA_HOME) { $candidates += Join-Path ($env:JAVA_HOME.Trim().Trim('"')) 'bin\java.exe' }
     foreach ($name in @('javac.exe', 'java.exe')) {
-        $command = Get-Command $name -ErrorAction SilentlyContinue | Select-Object -First 1
+        $command = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($command) { $candidates += Join-Path (Split-Path -Parent $command.Source) 'java.exe' }
     }
     $cache = Join-Path $Root '.local\runtime\jdk-21'
     $candidates += Join-Path $cache 'bin\java.exe'
-    foreach ($java in $candidates) {
-        if (Test-Java21 $java) { return Split-Path -Parent (Split-Path -Parent $java) }
+    foreach ($java in ($candidates | Select-Object -Unique)) {
+        if (Test-Java21 $java) {
+            $jdkRoot = Get-JavaRuntimeHome $java
+            if ($jdkRoot -and (Test-Java21 (Join-Path $jdkRoot 'bin\java.exe'))) {
+                return [IO.Path]::GetFullPath($jdkRoot)
+            }
+        }
     }
     if (-not [Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {
         throw 'Automatic JDK setup supports Windows x64. Install a compatible JDK 21 manually.'
@@ -176,9 +213,14 @@ function Invoke-FixFlow {
         }
         Write-Host "Backend ready: $apiUrl"
         if ($ServicesOnly) { return }
-        $env:JAVA_HOME = Get-Java21 $Root
+        $jdkRoot = Get-Java21 $Root
+        if (-not (Test-Java21 (Join-Path $jdkRoot 'bin\java.exe'))) {
+            throw "Selected JDK 21 is unusable: $jdkRoot. Expected bin\java.exe and bin\javac.exe."
+        }
+        $env:JAVA_HOME = [IO.Path]::GetFullPath($jdkRoot)
         $env:PATH = (Join-Path $env:JAVA_HOME 'bin') + [IO.Path]::PathSeparator + $env:PATH
         $env:FIXFLOW_API_URL = $apiUrl
+        Write-Host "Using JDK 21: $env:JAVA_HOME"
         Write-Host 'Preparing JavaFX libraries, then opening FixFlow...'
         $wrapper = Join-Path $Root 'mvnw.cmd'
         Invoke-Native -File $wrapper -Arguments @('-B', '-ntp', '-pl', 'fixflow-desktop', '-am', '-DskipTests', 'install')

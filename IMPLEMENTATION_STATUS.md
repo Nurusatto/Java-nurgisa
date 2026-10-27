@@ -1,6 +1,6 @@
 # FixFlow — состояние реализации
 
-Функциональный MVP проверен локально. Обновление 28.10.2026: диагностика неготового backend в Windows launcher.
+Функциональный MVP проверен локально. Обновление 28.10.2026: исправлен выбор JAVA_HOME в Windows launcher.
 
 ## Готово
 - Три Maven-модуля; Java 21, Spring Boot REST, JavaFX/FXML/CSS, PostgreSQL, Flyway V1–V6.
@@ -20,6 +20,15 @@
   клиента для работающего backend; `.env` читается как данные без выполнения команд.
 
 ## Последние фактические проверки (28.10.2026)
+- По последнему присланному Windows-логу: образ собран, PostgreSQL/backend `Healthy`,
+  backend готов на 127.0.0.1:18082. Следующий сбой — неверный `JAVA_HOME` при запуске Maven.
+- Воспроизведён дефект launcher: PATH с `javapath/java.exe` ошибочно давал родительский
+  каталог ссылки вместо корня JDK. Новый тест на прежнем коде фактически упал.
+  Launcher теперь читает `java.home` через .NET Process, проверяет Java и javac 21 в
+  реальном каталоге, нормализует кавычки и повторно проверяет JDK перед Maven.
+- PowerShell 7.6.9 на Linux: `test-scripts/start-windows.Tests.ps1` — **16 проверок прошли**,
+  включая чтение java.home настоящей JVM. Логи: /tmp/fixflow-javahome-before-fix.log
+  и /tmp/fixflow-javahome-checks.log. Полный Windows-запуск после исправления не проверен.
 - Причина Windows `unhealthy` установлена по присланному логу: SQL State `3D000`,
   `database "fixflow_demo_ready" does not exist`. `.env` перенесён с локальным именем БД,
   которого нет в PostgreSQL Docker. Документирована команда `createdb` с сохранением тома.
@@ -81,9 +90,9 @@
   В CI добавлены Windows PowerShell 5.1 и Docker smoke; удалённый GitHub Actions не запускался.
 - Физический принтер и production TLS не проверены. Отдельный PDF-генератор и установщики ОС
   отложены согласно границам первой поставки; ограничения поддержки Boot описаны в архитектуре.
-- Следующий шаг на Windows: создать отсутствующую `fixflow_demo_ready` через `createdb`
-  (либо выбрать существующую БД с нужными заказами в `.env`), затем повторить `start.cmd`.
-  Подтвердить health/миграции/seed и окно на Windows; успешный повтор пока не подтверждён.
+- Следующий шаг: отправить исправленный scripts/start-windows.ps1 в репозиторий,
+  обновить проект на Windows и повторить start.cmd; проверить строку Using JDK 21,
+  успешный Maven и настоящее окно. Готовность серверов подтверждена присланным логом.
   Инструкция: docs/windows.md. Docker/Testcontainers требуют работающего daemon.
 
 ## Текущая локальная среда

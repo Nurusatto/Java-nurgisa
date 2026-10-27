@@ -97,11 +97,87 @@ try {
         function Invoke-Native { throw 'diagnostic command failed' }
         Show-StartupDiagnostics
     }
+    Test-Case 'Java PATH shims resolve to the actual JDK root, not their parent directory' {
+        $env:JAVA_HOME = ''
+        $fixture = Join-Path $root 'java shim reproduction'
+        $shimDirectory = Join-Path $fixture 'Oracle/Java/javapath'
+        $jdkRoot = Join-Path $fixture 'actual JDK 21'
+        $null = New-Item -ItemType Directory -Force -Path $shimDirectory, (Join-Path $jdkRoot 'bin')
+        $shimJava = Join-Path $shimDirectory 'java.exe'
+        $jdkJava = Join-Path $jdkRoot 'bin/java.exe'
+        foreach ($file in @($shimJava, (Join-Path $shimDirectory 'javac.exe'), $jdkJava, (Join-Path $jdkRoot 'bin/javac.exe'))) {
+            Set-Content -LiteralPath $file -Value 'test executable'
+        }
+        function Get-Command { return [pscustomobject]@{ Source = $shimJava } }
+        function Test-Java21 { param($Java); return $Java -eq $shimJava -or $Java -eq $jdkJava }
+        function Get-JavaRuntimeHome { param($Java); return $jdkRoot }
+        function Invoke-RestMethod { throw 'An installed JDK must not be downloaded again' }
+        $selected = Get-Java21 $fixture
+        Assert-That ($selected -eq $jdkRoot) 'JAVA_HOME was inferred from a shim directory'
+        Assert-That (Test-Path -LiteralPath (Join-Path $selected 'bin/java.exe')) 'Selected JAVA_HOME has no bin/java.exe'
+    }
+    Test-Case 'Runtime home is read from a real JVM even though settings use stderr' {
+        $nativeJava = Get-Command java -CommandType Application -ErrorAction Stop | Select-Object -First 1
+        $reportedRoot = Get-JavaRuntimeHome $nativeJava.Source
+        Assert-That (-not [string]::IsNullOrWhiteSpace($reportedRoot)) 'JVM did not report java.home'
+        $executable = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { 'java.exe' } else { 'java' }
+        Assert-That (Test-Path -LiteralPath (Join-Path $reportedRoot "bin/$executable")) 'Reported runtime directory is unusable'
+    }
+    Test-Case 'An unusable runtime directory from PATH falls back to the complete cached JDK' {
+        $env:JAVA_HOME = ''
+        $fixture = Join-Path $root 'bad runtime fallback'
+        $shimDirectory = Join-Path $fixture 'javapath'
+        $incompleteRoot = Join-Path $fixture 'incomplete JDK'
+        $cache = Join-Path $fixture '.local/runtime/jdk-21'
+        $null = New-Item -ItemType Directory -Force -Path $shimDirectory, (Join-Path $incompleteRoot 'bin'), (Join-Path $cache 'bin')
+        $shimJava = Join-Path $shimDirectory 'java.exe'
+        foreach ($file in @($shimJava, (Join-Path $shimDirectory 'javac.exe'), (Join-Path $incompleteRoot 'bin/java.exe'), (Join-Path $cache 'bin/java.exe'), (Join-Path $cache 'bin/javac.exe'))) {
+            Set-Content -LiteralPath $file -Value 'test executable'
+        }
+        function Get-Command { return [pscustomobject]@{ Source = $shimJava } }
+        function Test-Java21 {
+            param($Java)
+            return (Test-Path -LiteralPath $Java) -and (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $Java) 'javac.exe'))
+        }
+        function Get-JavaRuntimeHome {
+            param($Java)
+            if ($Java -eq $shimJava) { return $incompleteRoot }
+            return $cache
+        }
+        function Invoke-RestMethod { throw 'The complete cached JDK should be reused' }
+        Assert-That ((Get-Java21 $fixture) -eq $cache) 'Incomplete runtime was accepted or cache ignored'
+    }
+    Test-Case 'A JAVA_HOME value surrounded by quotes is normalized before checking it' {
+        $jdkRoot = Join-Path $root 'quoted JDK root'
+        $null = New-Item -ItemType Directory -Force -Path (Join-Path $jdkRoot 'bin')
+        $jdkJava = Join-Path $jdkRoot 'bin/java.exe'
+        $env:JAVA_HOME = '"' + $jdkRoot + '"'
+        function Get-Command { return $null }
+        function Test-Java21 { param($Java); return $Java -eq $jdkJava }
+        function Get-JavaRuntimeHome { return $jdkRoot }
+        function Invoke-RestMethod { throw 'A valid JAVA_HOME must not trigger a download' }
+        Assert-That ((Get-Java21 $root) -eq $jdkRoot) 'Quoted JAVA_HOME was not normalized'
+    }
+    Test-Case 'An invalid selected JAVA_HOME prevents Maven from launching' {
+        $script:Calls = @()
+        function Wait-Docker {}
+        function Assert-WindowsDesktop {}
+        function Get-Java21 { return (Join-Path $root 'not-a-jdk') }
+        function Test-Java21 { return $false }
+        function Get-BackendUrl { return 'http://127.0.0.1:18082' }
+        function Invoke-Native {
+            param($File, $Arguments, [switch]$Capture)
+            $script:Calls += $File
+        }
+        Assert-Throws { Invoke-FixFlow -Root $root } 'Selected JDK 21 is unusable'
+        Assert-That ($script:Calls.Count -eq 2 -and @($script:Calls | Where-Object { $_ -ne 'docker' }).Count -eq 0) 'Maven was called with an invalid JAVA_HOME'
+    }
     Test-Case 'One launch waits for services, installs desktop dependencies, then opens JavaFX' {
         $script:Calls = @()
         function Wait-Docker {}
         function Assert-WindowsDesktop {}
         function Get-Java21 { return $root }
+        function Test-Java21 { return $true }
         function Get-BackendUrl { return 'http://127.0.0.1:18082' }
         function Invoke-Native {
             param($File, $Arguments, [switch]$Capture)
