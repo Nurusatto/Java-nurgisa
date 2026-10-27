@@ -67,8 +67,10 @@ try {
     }
     Test-Case 'An unhealthy backend prevents JavaFX from launching' {
         $script:Calls = @()
+        $script:DiagnosticsShown = $false
         function Wait-Docker {}
         function Assert-WindowsDesktop {}
+        function Show-StartupDiagnostics { $script:DiagnosticsShown = $true }
         function Get-BackendUrl { return 'http://127.0.0.1:8080' }
         function Get-Java21 { throw 'Java should not be prepared before backend is ready' }
         function Invoke-Native {
@@ -78,6 +80,22 @@ try {
         }
         Assert-Throws { Invoke-FixFlow -Root $root } 'backend startup failed'
         Assert-That ($script:Calls.Count -eq 2) 'Startup continued after Compose failure'
+        Assert-That $script:DiagnosticsShown 'Startup error did not show backend diagnostics'
+    }
+    Test-Case 'Startup diagnostics show status and backend logs without inspecting environment secrets' {
+        $script:Calls = @()
+        function Invoke-Native {
+            param($File, $Arguments, [switch]$Capture)
+            $script:Calls += $File + ' ' + ($Arguments -join ' ')
+        }
+        Show-StartupDiagnostics
+        Assert-That ($script:Calls.Count -eq 2) 'Unexpected diagnostic command count'
+        Assert-That ($script:Calls[0] -eq 'docker compose ps --all') 'Container status was not requested'
+        Assert-That ($script:Calls[1] -eq 'docker compose logs --no-color --tail 120 backend') 'Backend logs were not requested'
+    }
+    Test-Case 'Unavailable diagnostics do not mask the original startup failure' {
+        function Invoke-Native { throw 'diagnostic command failed' }
+        Show-StartupDiagnostics
     }
     Test-Case 'One launch waits for services, installs desktop dependencies, then opens JavaFX' {
         $script:Calls = @()

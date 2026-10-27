@@ -141,6 +141,17 @@ function Assert-WindowsDesktop {
     }
 }
 
+function Show-StartupDiagnostics {
+    Write-Host 'Container status:'
+    try {
+        Invoke-Native -File 'docker' -Arguments @('compose', 'ps', '--all')
+    } catch { Write-Host 'Could not read container status.' }
+    Write-Host 'Last backend log messages:'
+    try {
+        Invoke-Native -File 'docker' -Arguments @('compose', 'logs', '--no-color', '--tail', '120', 'backend')
+    } catch { Write-Host 'Could not read backend logs. Run: docker compose logs --tail 120 backend' }
+}
+
 function Invoke-FixFlow {
     param([string]$Root, [switch]$Stop, [switch]$ServicesOnly, [int]$WaitSeconds = 240)
     if (-not $Stop -and -not $ServicesOnly) { Assert-WindowsDesktop }
@@ -156,7 +167,13 @@ function Invoke-FixFlow {
         Invoke-Native -File 'docker' -Arguments @('compose', 'version')
         $apiUrl = Get-BackendUrl
         Write-Host 'Building and starting PostgreSQL + FixFlow backend...'
-        Invoke-Native -File 'docker' -Arguments @('compose', 'up', '--detach', '--build', '--wait', '--wait-timeout', [string]$WaitSeconds, 'backend')
+        try {
+            Invoke-Native -File 'docker' -Arguments @('compose', 'up', '--detach', '--build', '--wait', '--wait-timeout', [string]$WaitSeconds, 'backend')
+        } catch {
+            $startupFailure = $_
+            Show-StartupDiagnostics
+            throw $startupFailure
+        }
         Write-Host "Backend ready: $apiUrl"
         if ($ServicesOnly) { return }
         $env:JAVA_HOME = Get-Java21 $Root
