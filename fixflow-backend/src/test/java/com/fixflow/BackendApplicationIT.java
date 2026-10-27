@@ -951,6 +951,13 @@ class BackendApplicationIT {
     var response = http.getForEntity("/actuator/health", Map.class);
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).containsEntry("status", "UP");
+    var readiness = http.getForEntity("/actuator/health/readiness", Map.class);
+    assertThat(readiness.getStatusCode().value()).isEqualTo(200);
+    assertThat(readiness.getBody())
+        .containsEntry("status", "UP")
+        .doesNotContainKeys("components", "details");
+    var liveness = http.getForEntity("/actuator/health/liveness", Map.class);
+    assertThat(liveness.getStatusCode().value()).isEqualTo(200);
   }
 
   @Test

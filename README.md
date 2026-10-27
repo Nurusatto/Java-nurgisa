@@ -1821,6 +1821,26 @@ FixFlow должен запускаться, работать с PostgreSQL, с�
 Исходные требования выше сохранены. Фактические результаты проверок и оставшиеся
 ограничения указаны в [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
 
+## Windows: один запуск
+
+Установите и откройте Docker Desktop с Linux containers / WSL 2, затем в обновлённой
+папке проекта дважды нажмите **`start.cmd`**, либо выполните в PowerShell:
+
+```powershell
+.\start.cmd
+```
+
+Скрипт создаёт отсутствующий `.env`, собирает и запускает backend и PostgreSQL в Docker,
+ждёт готовности, подготавливает JDK 21/Maven/библиотеки и открывает окно JavaFX в Windows.
+При первом запуске дождитесь скачивания зависимостей. Вход: `owner@fixflow.test`,
+пароль `Fictional-Demo-2026!`. Остановка: закрыть окно и выполнить **`stop.cmd`**;
+том базы и существующий `.env` сохраняются. Подробности: [Windows](docs/windows.md).
+
+Только серверы: `docker compose up -d --build --wait --wait-timeout 240`.
+Эта команда запускает PostgreSQL и backend; графическое окно открывает `start.cmd`.
+Внутри контейнера backend подключается к `postgres:5432`, наружу слушает localhost:8080
+(либо `SERVER_PORT` из `.env`). Demo-данные создаются автоматически в dev-профиле.
+
 ## Подготовка
 
 Требуются JDK 21, Docker с работающим daemon и Docker Compose. Для JavaFX нужен

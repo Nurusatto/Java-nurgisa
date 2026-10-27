@@ -47,7 +47,12 @@ public class SecurityConfiguration {
       throws Exception {
     http.authorizeHttpRequests(
         a ->
-            a.requestMatchers("/actuator/health", "/api/v1/auth/csrf", "/api/v1/public/**")
+            a.requestMatchers(
+                    "/actuator/health",
+                    "/actuator/health/readiness",
+                    "/actuator/health/liveness",
+                    "/api/v1/auth/csrf",
+                    "/api/v1/public/**")
                 .permitAll()
                 .anyRequest()
                 .authenticated());

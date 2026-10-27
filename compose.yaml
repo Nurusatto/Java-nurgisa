@@ -17,5 +17,30 @@ services:
       timeout: 3s
       retries: 20
     restart: unless-stopped
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SERVER_ADDRESS: 0.0.0.0
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      FIXFLOW_DEMO_ENABLED: ${FIXFLOW_DEMO_ENABLED:-false}
+      FIXFLOW_DEMO_PASSWORD: ${FIXFLOW_DEMO_PASSWORD:-}
+      FIXFLOW_BOOTSTRAP_OWNER_ENABLED: ${FIXFLOW_BOOTSTRAP_OWNER_ENABLED:-false}
+      FIXFLOW_BOOTSTRAP_OWNER_EMAIL: ${FIXFLOW_BOOTSTRAP_OWNER_EMAIL:-}
+      FIXFLOW_BOOTSTRAP_OWNER_NAME: ${FIXFLOW_BOOTSTRAP_OWNER_NAME:-Owner}
+      FIXFLOW_BOOTSTRAP_OWNER_PASSWORD: ${FIXFLOW_BOOTSTRAP_OWNER_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 volumes:
   postgres_data:

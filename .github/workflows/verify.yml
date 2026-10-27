@@ -14,3 +14,35 @@ jobs:
           cache: maven
       - name: Build and test with PostgreSQL Testcontainers
         run: ./mvnw -B -ntp verify
+      - name: Check the container health probe
+        run: python3 test-scripts/healthcheck.py
+      - name: Check launcher behavior
+        shell: pwsh
+        run: ./test-scripts/start-windows.Tests.ps1
+  windows-launcher:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Windows PowerShell 5.1 compatibility and launcher behavior
+        shell: powershell
+        run: ./test-scripts/start-windows.Tests.ps1
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image and start the demo
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait --wait-timeout 240
+          curl --fail http://127.0.0.1:8080/actuator/health/readiness
+          test "$(docker compose exec -T postgres psql -U fixflow -d fixflow_demo -Atc 'select count(*) from repair_order')" = 80
+          test "$(docker compose exec -T postgres psql -U fixflow -d fixflow_demo -Atc 'select count(*) from app_user')" = 8
+          docker compose restart backend
+          docker compose up -d --wait --wait-timeout 240
+          test "$(docker compose exec -T postgres psql -U fixflow -d fixflow_demo -Atc 'select count(*) from repair_order')" = 80
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop services, preserving volumes
+        if: always()
+        run: docker compose stop
