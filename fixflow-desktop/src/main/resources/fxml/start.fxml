@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.BorderPane?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="root" fx:controller="com.fixflow.desktop.controller.ShellController">
+  <center><VBox fx:id="loginPane" alignment="CENTER" spacing="16" styleClass="welcome">
+    <Label text="FixFlow" styleClass="brand"/>
+    <Label text="Ремонтная мастерская · вход сотрудника" styleClass="subtitle"/>
+    <TextField fx:id="server" promptText="Адрес сервера" maxWidth="380"/>
+    <TextField fx:id="email" promptText="Email" maxWidth="380"/>
+    <PasswordField fx:id="password" promptText="Пароль" onAction="#login" maxWidth="380"/>
+    <Button fx:id="loginButton" text="Войти" onAction="#login" styleClass="primary"/>
+    <Label fx:id="loginError" wrapText="true" maxWidth="500"/>
+  </VBox></center>
+</BorderPane>

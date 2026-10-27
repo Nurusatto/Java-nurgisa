@@ -1,0 +1,19 @@
+.root { -fx-font-family: "DejaVu Sans"; -fx-font-size: 14px; -fx-background-color: #f3f6fc; }
+.welcome { -fx-padding: 40px; }
+.brand { -fx-font-size: 48px; -fx-font-weight: bold; -fx-text-fill: #2463eb; }
+.subtitle { -fx-font-size: 22px; -fx-text-fill: #26334d; }
+.sidebar { -fx-background-color: #14243d; -fx-padding: 28 18; -fx-pref-width: 235; }
+.sidebar .label { -fx-text-fill: #e0e9ff; }
+.sidebar-brand { -fx-font-size: 30px; -fx-font-weight: bold; }
+.sidebar .button { -fx-background-color: #203654; -fx-text-fill: white; -fx-alignment: center-left; }
+.button { -fx-padding: 10 16; -fx-background-radius: 7; -fx-cursor: hand; }
+.button:hover { -fx-opacity: 0.88; }
+.primary { -fx-background-color: #2463eb; -fx-text-fill: white; -fx-font-weight: bold; }
+.page-header { -fx-padding: 22 26; }
+.page-title { -fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #14243d; }
+.footer { -fx-padding: 14 20; -fx-alignment: center-left; }
+.table-view { -fx-background-color: white; -fx-border-color: #e2e8f0; }
+.table-row-cell { -fx-cell-size: 42; }
+.text-field, .password-field, .combo-box { -fx-padding: 9; }
+.metric-card { -fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-pref-width: 230; -fx-border-color: #e2e8f0; -fx-border-radius: 10; }
+.dialog-pane { -fx-background-color: #f3f6fc; -fx-padding: 18; }
