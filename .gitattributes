@@ -2,3 +2,5 @@
 /stop.cmd text eol=crlf
 /scripts/start-windows.ps1 text eol=crlf
 /mvnw text eol=lf
+/start.sh text eol=lf
+/stop.sh text eol=lf

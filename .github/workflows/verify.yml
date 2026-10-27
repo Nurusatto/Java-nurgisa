@@ -16,6 +16,11 @@ jobs:
         run: ./mvnw -B -ntp verify
       - name: Check the container health probe
         run: python3 test-scripts/healthcheck.py
+      - name: Check Linux launchers and cold Wrapper downloads
+        run: |
+          bash -n start.sh stop.sh
+          python3 test-scripts/wrapper-download.py
+          python3 test-scripts/start-linux.py
       - name: Check launcher behavior
         shell: pwsh
         run: ./test-scripts/start-windows.Tests.ps1

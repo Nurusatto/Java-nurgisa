@@ -74,6 +74,22 @@ scripts/gui-smoke.sh
 
 ## Docker и Windows launcher
 
+```bash
+python3 test-scripts/wrapper-download.py
+```
+
+Три проверки запускают настоящий Wrapper с пустым кешем и локальными тестовыми архивами:
+ZIP принимается при верной сумме; повреждённый ZIP и TAR.GZ с суммой ZIP отклоняются
+до запуска Maven. В Docker build установлен `unzip`, чтобы Wrapper выбирал ZIP.
+
+```bash
+python3 test-scripts/start-linux.py
+```
+
+Восемь проверок Linux launcher с подменой команд: порядок Compose/readiness/install/окно,
+остановка при ошибке, режимы отдельного клиента/серверов, JDK 21, сохранение `.env` и
+чтение его значений без исполнения команд. Настоящее окно проверяется отдельно.
+
 ```powershell
 pwsh -NoProfile -File test-scripts/start-windows.Tests.ps1
 ```

@@ -1841,6 +1841,22 @@ FixFlow должен запускаться, работать с PostgreSQL, с�
 Внутри контейнера backend подключается к `postgres:5432`, наружу слушает localhost:8080
 (либо `SERVER_PORT` из `.env`). Demo-данные создаются автоматически в dev-профиле.
 
+## Linux, включая fish
+
+В графическом сеансе Linux с JDK 21, GTK 3, Python 3, curl и работающим Docker Compose:
+
+```bash
+./start.sh
+```
+
+Скрипт создаёт отсутствующий `.env`, поднимает PostgreSQL/backend в Docker, ждёт их
+готовности, скачивает Maven-зависимости и открывает JavaFX. `.cmd` предназначены для
+Windows; `start.sh` запускается из fish через свой Bash shebang. Остановка серверов:
+`./stop.sh`; том базы сохраняется. Только серверы: `./start.sh --services-only`.
+Если backend уже запущен отдельно, откройте окно командой `./start.sh --desktop-only`;
+адрес берётся из `FIXFLOW_API_URL` в `.env`. В этом режиме Docker не требуется.
+Launcher читает настройки из `.env` как строковые значения, без выполнения команд.
+
 ## Подготовка
 
 Требуются JDK 21, Docker с работающим daemon и Docker Compose. Для JavaFX нужен
